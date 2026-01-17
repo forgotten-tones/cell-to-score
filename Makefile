@@ -20,7 +20,7 @@ RUST_VERSION := $(shell rustc --version 2>/dev/null || echo "unknown")
 
 PUBLISH_BRANCH := pages
 CODE_BRANCH := $(GIT_BRANCH)
-DEST_DIR := build
+DEST_DIR := book
 
 LOCALHOST := $(shell hostname | grep -q '\.local$$' && hostname || echo "$$(hostname).local")
 LOCALPORT := 5099
@@ -118,16 +118,28 @@ info:
 .PHONY: setup
 setup:
 	@echo "$(BLUE)Setting up worktree...$(RESET)"
-	@git fetch origin
-	@if [ ! -d "$(DEST_DIR)/.git" ]; then \
+	@git fetch origin 2>/dev/null || true
+	@if [ -d "$(DEST_DIR)/.git" ] || git worktree list | grep -q "$(DEST_DIR)"; then \
+		echo "$(YELLOW)Worktree already exists$(RESET)"; \
+	else \
 		if [ -d "$(DEST_DIR)" ]; then \
-			echo "$(YELLOW)Removing existing build directory...$(RESET)"; \
+			echo "$(CYAN)• Removing existing build directory...$(RESET)"; \
 			rm -rf $(DEST_DIR); \
 		fi; \
-		git worktree add $(DEST_DIR) pages && \
-		echo "$(GREEN)✓ Worktree created$(RESET)"; \
-	else \
-		echo "$(YELLOW)Worktree already exists$(RESET)"; \
+		if git show-ref --verify --quiet refs/heads/$(PUBLISH_BRANCH) 2>/dev/null || \
+		   git show-ref --verify --quiet refs/remotes/origin/$(PUBLISH_BRANCH) 2>/dev/null; then \
+			echo "$(CYAN)• Branch '$(PUBLISH_BRANCH)' exists, creating worktree...$(RESET)"; \
+			git worktree add $(DEST_DIR) $(PUBLISH_BRANCH); \
+		else \
+			echo "$(CYAN)• Creating orphan branch '$(PUBLISH_BRANCH)'...$(RESET)"; \
+			git worktree add --detach $(DEST_DIR); \
+			cd $(DEST_DIR) && \
+			git checkout --orphan $(PUBLISH_BRANCH) && \
+			git reset --hard && \
+			git commit --allow-empty -m "Initialize $(PUBLISH_BRANCH) branch" && \
+			echo "$(GREEN)✓ Orphan branch created$(RESET)"; \
+		fi; \
+		echo "$(GREEN)✓ Worktree created at $(DEST_DIR)/$(RESET)"; \
 	fi
 
 # Check tools target
