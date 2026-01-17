@@ -1,0 +1,41 @@
+# Semester 9: Reflection & Notes
+
+*Use this space to document your progress throughout the semester.*
+
+---
+
+## Pre-Semester
+
+**Date:**
+
+**Starting point:**
+
+
+
+**Goals:**
+
+
+
+---
+
+## Weekly Reflections
+
+*(Add entries as you progress)*
+
+---
+
+## End-of-Semester Reflection
+
+**Date:**
+
+**Accomplishments:**
+
+
+
+**Nine-Semester Journey Summary:**
+
+
+
+**Future directions:**
+
+

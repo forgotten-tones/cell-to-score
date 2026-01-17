@@ -1,0 +1,20 @@
+[book]
+title = "From Cell to Score"
+subtitle = "A Multi-Semester Composition Curriculum"
+authors = ["Duncan McGreggor"]
+description = "A comprehensive self-study curriculum in cell-based composition techniques, designed to accompany nine semesters of private composition instruction."
+language = "en"
+src = "src"
+
+[build]
+build-dir = "book"
+
+[output.html]
+default-theme = "rust"
+preferred-dark-theme = "coal"
+git-repository-url = "https://github.com/forgotten-tones/cell-to-score"
+edit-url-template = "https://github.com/forgotten-tones/cell-to-score/edit/main/{path}"
+
+[output.html.fold]
+enable = true
+level = 1
