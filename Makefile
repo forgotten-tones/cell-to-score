@@ -18,6 +18,8 @@ GIT_BRANCH := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unkno
 BUILD_TIME := $(shell date -u '+%Y-%m-%dT%H:%M:%SZ')
 RUST_VERSION := $(shell rustc --version 2>/dev/null || echo "unknown")
 
+SITE_URL := https://forgotten-tones.github.io/cell-to-score/
+BACKUP_SITE_URL := https://forgotten-tones.codeberg.page/cell-to-score/
 PUBLISH_BRANCH := pages
 CODE_BRANCH := $(GIT_BRANCH)
 DEST_DIR := book
@@ -44,22 +46,14 @@ help:
 	@echo "$(CYAN)║$(RESET) \"$(BLUE)$(PROJECT_NAME)\" Build System$(RESET)                             $(CYAN)║$(RESET)"
 	@echo "$(CYAN)╚══════════════════════════════════════════════════════════╝$(RESET)"
 	@echo ""
-	@echo "$(GREEN)Building:$(RESET)"
-	@echo "  $(YELLOW)make build$(RESET)            - Build all binaries ($(BINARIES))"
-	@echo "  $(YELLOW)make build-release$(RESET)    - Build optimized release binaries"
-	@echo "  $(YELLOW)make build MODE=release$(RESET) - Build with custom mode"
-	@echo ""
-	@echo "$(GREEN)Testing & Quality:$(RESET)"
-	@echo "  $(YELLOW)make test$(RESET)             - Run all tests"
-	@echo "  $(YELLOW)make lint$(RESET)             - Run clippy and format check"
-	@echo "  $(YELLOW)make format$(RESET)           - Format all code with rustfmt"
-	@echo "  $(YELLOW)make coverage$(RESET)         - Generate test coverage report"
-	@echo "  $(YELLOW)make check$(RESET)            - Build + lint + test"
-	@echo "  $(YELLOW)make check-all$(RESET)        - Build + lint + coverage"
-	@echo ""
-	@echo "$(GREEN)Development:$(RESET)"
+	@echo "$(GREEN)Book:$(RESET)"
+	@echo "  $(YELLOW)make book$(RESET)             - Build mdbook (preserves worktree)"
 	@echo "  $(YELLOW)make serve$(RESET)            - Serve mdbook at $(LOCALHOST):$(LOCALPORT)"
 	@echo "  $(YELLOW)make watch$(RESET)            - Watch for changes and rebuild"
+	@echo ""
+	@echo "$(GREEN)Publishing:$(RESET)"
+	@echo "  $(YELLOW)make setup$(RESET)            - Set up pages branch worktree"
+	@echo "  $(YELLOW)make deploy$(RESET)           - Build and deploy book to Codeberg/Github pages"
 	@echo ""
 	@echo "$(GREEN)Cleaning:$(RESET)"
 	@echo "  $(YELLOW)make clean$(RESET)            - Clean bin directory"
@@ -67,7 +61,6 @@ help:
 	@echo ""
 	@echo "$(GREEN)Utilities:$(RESET)"
 	@echo "  $(YELLOW)make push$(RESET)             - Pushes to Codeberg and Github"
-	@echo "  $(YELLOW)make publish$(RESET)          - WIP: Publishes all crates to crates.io"
 	@echo "  $(YELLOW)make tracked-files$(RESET)    - Save list of tracked files"
 	@echo ""
 	@echo "$(GREEN)Information:$(RESET)"
@@ -154,76 +147,6 @@ check-tools:
 	@command -v git >/dev/null 2>&1 && echo "$(GREEN)✓ git found$(RESET)" || echo "$(RED)✗ git not found$(RESET)"
 	@test -f Cargo.toml && echo "$(GREEN)✓ Cargo.toml found$(RESET)" || echo "$(RED)✗ Cargo.toml not found$(RESET)"
 
-# Build directory creation
-$(BIN_DIR):
-	@echo "$(BLUE)Creating bin directory...$(RESET)"
-	@mkdir -p $(BIN_DIR)
-	@echo "$(GREEN)✓ Directory created$(RESET)"
-
-# Build targets
-.PHONY: build
-build: clean $(BIN_DIR)
-	@echo "$(BLUE)Building $(PROJECT_NAME) in $(MODE) mode...$(RESET)"
-	@echo "$(CYAN)• Compiling workspace...$(RESET)"
-	@if [ "$(MODE)" = "release" ]; then \
-		cargo build --release; \
-	else \
-		cargo build; \
-	fi
-	@echo "$(CYAN)• Building external tools (odm)...$(RESET)"
-	@if [ "$(MODE)" = "release" ]; then \
-		cargo build --release --manifest-path $(ODM_PATH)/Cargo.toml; \
-	else \
-		cargo build --manifest-path $(ODM_PATH)/Cargo.toml; \
-	fi
-	@echo "$(CYAN)• Copying binaries to $(BIN_DIR)/$(RESET)"
-	@for bin in $(BINARIES); do \
-		if [ "$$bin" = "odm" ]; then \
-			if [ -f $(ODM_TARGET)/$$bin ]; then \
-				cp $(ODM_TARGET)/$$bin $(BIN_DIR)/$$bin; \
-				echo "  $(GREEN)✓$(RESET) $$bin (from oxur workspace)"; \
-			else \
-				echo "  $(YELLOW)⚠$(RESET) $$bin not found in $(ODM_TARGET), skipping"; \
-			fi; \
-		elif [ -f $(TARGET)/$$bin ]; then \
-			cp $(TARGET)/$$bin $(BIN_DIR)/$$bin; \
-			echo "  $(GREEN)✓$(RESET) $$bin"; \
-		else \
-			echo "  $(YELLOW)⚠$(RESET) $$bin not found, skipping"; \
-		fi; \
-	done
-	@echo "$(GREEN)✓ Build complete$(RESET)"
-	@echo "$(CYAN)→ Binaries available in $(BIN_DIR)/$(RESET)"
-
-.PHONY: build-release
-build-release: MODE = release
-build-release: TARGET = ./target/$(MODE)
-build-release: ODM_TARGET = $(OXUR_WORKSPACE)/target/$(MODE)
-build-release: clean $(BIN_DIR)
-	@echo "$(BLUE)Building $(PROJECT_NAME) in release mode...$(RESET)"
-	@echo "$(CYAN)• Compiling optimized workspace...$(RESET)"
-	@cargo build --release
-	@echo "$(CYAN)• Building external tools (odm)...$(RESET)"
-	@cargo build --release --manifest-path $(ODM_PATH)/Cargo.toml
-	@echo "$(CYAN)• Copying binaries to $(BIN_DIR)/$(RESET)"
-	@for bin in $(BINARIES); do \
-		if [ "$$bin" = "odm" ]; then \
-			if [ -f $(ODM_TARGET)/$$bin ]; then \
-				cp $(ODM_TARGET)/$$bin $(BIN_DIR)/$$bin; \
-				echo "  $(GREEN)✓$(RESET) $$bin (from oxur workspace, size: $$(du -h $(BIN_DIR)/$$bin | cut -f1))"; \
-			else \
-				echo "  $(YELLOW)⚠$(RESET) $$bin not found in $(ODM_TARGET), skipping"; \
-			fi; \
-		elif [ -f $(TARGET)/$$bin ]; then \
-			cp $(TARGET)/$$bin $(BIN_DIR)/$$bin; \
-			echo "  $(GREEN)✓$(RESET) $$bin (size: $$(du -h $(BIN_DIR)/$$bin | cut -f1))"; \
-		else \
-			echo "  $(YELLOW)⚠$(RESET) $$bin not found, skipping"; \
-		fi; \
-	done
-	@echo "$(GREEN)✓ Release build complete$(RESET)"
-	@echo "$(CYAN)→ Optimized binaries in $(BIN_DIR)/$(RESET)"
-
 # Cleaning targets
 .PHONY: clean
 clean:
@@ -245,51 +168,14 @@ test:
 	@cargo test --all-features --workspace
 	@echo "$(GREEN)✓ All tests passed$(RESET)"
 
-.PHONY: lint
-lint:
-	@echo "$(BLUE)Running linter checks...$(RESET)"
-	@echo "$(CYAN)• Running clippy...$(RESET)"
-	@cargo clippy --all-features --workspace -- -D warnings
-	@echo "$(GREEN)✓ Clippy passed$(RESET)"
-	@echo "$(CYAN)• Checking code formatting...$(RESET)"
-	@cargo fmt --all -- --check
-	@echo "$(GREEN)✓ Format check passed$(RESET)"
-
-.PHONY: format
-format:
-	@echo "$(BLUE)Formatting code...$(RESET)"
-	@echo "$(CYAN)• Running rustfmt on all files...$(RESET)"
-	@cargo fmt --all
-	@echo "$(GREEN)✓ Code formatted$(RESET)"
-
-.PHONY: coverage
-coverage:
-	@echo "$(BLUE)Generating test coverage report...$(RESET)"
-	@echo "$(CYAN)• Running tests with coverage (cell-to-score crate only)...$(RESET)"
-	@cd crates/cell-to-score && cargo llvm-cov --lib --no-default-features
-	@echo "$(GREEN)✓ Coverage report generated$(RESET)"
-	@echo "$(YELLOW)→ For detailed HTML report, run: cd crates/cell-to-score && cargo llvm-cov --html --lib --no-default-features$(RESET)"
-
-.PHONY: coverage-html
-coverage-html:
-	@echo "$(BLUE)Generating HTML coverage report...$(RESET)"
-	@echo "$(CYAN)• Running tests with coverage (cell-to-score crate only)...$(RESET)"
-	@cd crates/cell-to-score && cargo llvm-cov --html --lib --no-default-features
-	@echo "$(GREEN)✓ HTML coverage report generated$(RESET)"
-	@echo "$(CYAN)→ Report: crates/cell-to-score/target/llvm-cov/html/index.html$(RESET)"
-
-# Combined check targets
-.PHONY: check
-check: build lint test
-	@echo ""
-	@echo "$(GREEN)✓ All checks passed (build + lint + test)$(RESET)"
-	@echo ""
-
-.PHONY: check-all
-check-all: build lint coverage
-	@echo ""
-	@echo "$(GREEN)✓ Full validation complete (build + lint + coverage)$(RESET)"
-	@echo ""
+# Book targets
+.PHONY: book
+book:
+	@echo "$(BLUE)Building mdbook...$(RESET)"
+	@mdbook build
+	@echo "$(CYAN)• Restoring worktree link...$(RESET)"
+	@echo "gitdir: $$(pwd)/.git/worktrees/$(DEST_DIR)" > $(DEST_DIR)/.git
+	@echo "$(GREEN)✓ Book built at $(DEST_DIR)/$(RESET)"
 
 # Development targets
 .PHONY: serve
@@ -324,13 +210,12 @@ push:
 	@echo "$(GREEN)✓ Pushed$(RESET)"
 
 .PHONY: deploy
-deploy: build
+deploy: book
 	@echo "$(BLUE)Deploying site...$(RESET)"
 	@echo "$(CYAN)Updating git worktree $(DEST_DIR) dir for $(PUBLISH_BRANCH) branch ...$(RESET)"
 	@cd $(DEST_DIR) && \
 	git add -A && \
 	(git commit -m "Book rebuild - $(BUILD_TIME)" || echo "$(YELLOW)No changes to commit$(RESET)")
-	@git checkout _cobalt.yml
 	@echo "$(CYAN)• Codeberg:$(RESET)"
 	@git push codeberg $(PUBLISH_BRANCH)
 	@echo "$(GREEN)✓ Published$(RESET)"
