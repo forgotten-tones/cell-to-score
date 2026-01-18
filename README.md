@@ -16,7 +16,7 @@ The curriculum is designed to accompany nine semesters of private composition in
 **Read the book:** on ...
 
 * [GitHub](https://music-comp.github.io/cell-to-score)
-* [Codeberg](https://music-comp.codeberg.pages/cell-to-score)
+* [Codeberg](https://music-comp.codeberg.page/cell-to-score)
 
 ---
 
